@@ -44,7 +44,7 @@ class GoogleScholar:
         return searchResult
 
 
-# if __name__ == "__main__":
-#     obj = GoogleScholar(1)
-#     obj.build_browser()
-#     print(obj.search())
+if __name__ == "__main__":
+    obj = GoogleScholar(1)
+    obj.build_browser()
+    print(obj.search())

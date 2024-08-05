@@ -13,15 +13,26 @@ from linebot.v3.messaging import (
     Configuration,
     ApiClient,
     MessagingApi,
+
+    PostbackAction,
+
     ReplyMessageRequest,
+    ShowLoadingAnimationRequest,
+    PushMessageRequest,
+
     TextMessage,
     StickerMessage,
-    ShowLoadingAnimationRequest
+    TemplateMessage,
+
+    ButtonsTemplate
 )
 from linebot.v3.webhooks import (
     MessageEvent,
+    PostbackEvent,
+
     TextMessageContent,
-    StickerMessageContent
+    StickerMessageContent,
+    PostbackContent
 )
 
 # 載入環境變數
@@ -55,7 +66,6 @@ def search():
     except InvalidSignatureError:
         app.logger.info("Invalid signature. Please check your channel access token/channel secret.")
         abort(400)
-
     return 'OK'
 
 
@@ -72,13 +82,25 @@ def handle_message(event):
             )
         )
 
-        userText = event.message.text == "get"
+        if (event.message.text == "get"):
+            msg = [TextMessage(text=message_text)]
+        else:
+            # 按按鈕發生回發事件
+            msg = [TemplateMessage(altText="ButtonsTemplate", template=ButtonsTemplate(
+                thumbnailImageUrl="https://images.pexels.com/photos/160755/kittens-cats-foster-playing-160755.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+                text="PostBack",
+                actions=[PostbackAction(
+                    label="PostBackButton Label",
+                    data="Google Scholar",
+                    displayText="Google Scholar"
+                )]
+            ))]
 
-        # 回覆相同訊息
+        # 回覆訊息
         line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
                 replyToken=event.reply_token,
-                messages=[TextMessage(text=(message_text if userText else "Please input get."))]
+                messages=msg
             )
         )
 
@@ -103,6 +125,35 @@ def handle_sticker(event):
                 messages=[StickerMessage(stickerId=event.message.sticker_id, packageId=event.message.package_id)]
             )
         )
+
+
+@handler.add(PostbackEvent)
+def handle_postback(event):
+    with ApiClient(configuration) as api_client:
+        line_bot_api = MessagingApi(api_client)
+
+        # 顯示輸入動畫
+        line_bot_api.show_loading_animation_with_http_info(
+            ShowLoadingAnimationRequest(
+                chatId=event.source.user_id,
+                loadingSeconds=5
+            )
+        )
+
+        # 回覆訊息
+        line_bot_api.reply_message_with_http_info(
+            ReplyMessageRequest(
+                replyToken=event.reply_token,
+                messages=[TextMessage(text="reply post Back Message in postback fuc"+f"{event.postback.data}")]
+            )
+        )
+
+        # line_bot_api.push_message_with_http_info(
+        #     PushMessageRequest(
+        #         to=event.source.user_id,
+        #         messages=[TextMessage(text=" push post Back Message in postback fuc"+f"{event.postback.data}")]
+        #     )
+        # )
 
 
 if __name__ == "__main__":
