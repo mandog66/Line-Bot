@@ -8,19 +8,26 @@
 
 ## 說明
 
-* ### 爬蟲
+* ### 爬蟲(crawler.py)
+
+  * 載入函式庫
+
+    ```PYTHON
+    import os
+    from dotenv import load_dotenv
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    ```
 
   * 載入環境變數
 
     ```PYTHON
-    from dotenv import load_dotenv
     load_dotenv()
     ```
 
   * 初始化
 
     ```PYTHON
-    import os
     def __init__(self, page: int = 1):
         self.url = os.environ.get("SEARCH_URL") + f"&start={(page - 1) * 10}"
         self.executable_path = os.environ.get("EXECUTABLE_PATH")
@@ -29,8 +36,6 @@
   * 建立瀏覽器
 
     ```PYTHON
-    from selenium import webdriver
-    from selenium.webdriver.common.by import By
     def build_browser(self):
         self.options = webdriver.ChromeOptions()
         self.options.add_argument('--headless') # 隱藏瀏覽器
@@ -65,7 +70,7 @@
         return searchResult
     ```
 
-* ### Line Bot
+* ### Line Bot(main.py)
 
   * 載入函式庫
 
@@ -204,21 +209,78 @@
                 )
             )
 
-            line_bot_api.push_message_with_http_info(
-                PushMessageRequest(
-                    to=event.source.user_id,
-                    messages=[TextMessage(text=" push post Back Message in postback fuc"+f"{event.postback.data}")]
-                )
-            )
+            # line_bot_api.push_message_with_http_info(
+            #     PushMessageRequest(
+            #         to=event.source.user_id,
+            #         messages=[TextMessage(text=" push post Back Message in postback fuc"+f"{event.postback.data}")]
+            #     )
+            # )
     ```
 
-* ### Line 聊天室
+* ### Line 聊天室(rich_menu.py)
+
+  * 載入函式庫
+
+    ```PYTHON
+    import os
+    from linebot.v3.messaging import (
+        Configuration,
+        ApiClient,
+        MessagingApi,
+        MessagingApiBlob,
+        RichMenuRequest,
+
+        CreateRichMenuAliasRequest
+    )
+    ```
+
+  * 初始化
+
+    ```PYTHON
+    def __init__(self, configuration: Configuration, richMenuRequest: RichMenuRequest):
+        self.configuration = configuration
+        self.richMenuRequest = richMenuRequest
+    ```
+
+  * 建置圖文選單
+
+    ```PYTHON
+    def create(self, image_path: str):
+        extension = os.path.splitext(image_path)
+        extension = 'image/jpeg' if extension == 'jpg' else 'image/png'
+        with ApiClient(self.configuration)as api_client:
+            self.line_bot_api = MessagingApi(api_client)
+            self.line_blob_api = MessagingApiBlob(api_client)
+            self.richMenuId = self.line_bot_api.create_rich_menu(
+                rich_menu_request=self.richMenuRequest
+            ).rich_menu_id
+
+            with open(image_path, 'rb') as image:
+                self.line_blob_api.set_rich_menu_image(
+                    rich_menu_id=self.richMenuId,
+                    body=bytearray(image.read()),
+                    _headers={'Content-Type': extension}
+                )
+
+            self.line_bot_api.set_default_rich_menu(
+                rich_menu_id=self.richMenuId
+            )
+
+            # 圖文選單分頁
+            # self.line_bot_api.create_rich_menu_alias(
+            #     CreateRichMenuAliasRequest(
+            #         richMenuAliasId="test-rich-meun",
+            #         richMenuId=self.richMenuId
+            #     )
+            # )
+
+    ```
 
 ## 筆記
 
 * ### 爬蟲
 
-  * 為了讓環境變數方便更改，學到`dotenv`函式庫，可以將.env檔案的內容讀取出來。在需要使用環境變數的地方互叫下面的程式建立變數。
+  * 為了讓環境變數方便更改，學到`dotenv`函式庫，可以將.env檔案(與主程式檔同層)的內容讀取出來。在需要使用環境變數的地方互叫下面的程式建立變數。
 
     ```PYTHON
     os.environ.get('Environment Variables')
@@ -282,6 +344,38 @@
   * Ngrok產生一個可以讓外網連接本機的URL，也可以說是一個可以接收webhook事件的伺服器入口。
   * 整個流程大概就是 : User發送訊息 <-> Line Platform <-> webhook <-> Server(Bot) ==> 當user發送訊息，Line Platform知道有訊息了，所以透過Ngrok產生的URL發送webhook事件給由Flask建立的Server，Server處理事件後回應給Line Platform，最終回覆User。
 
+* ### Line 聊天室
+
+  * 圖文選單格式可以在`RichMenuRequest`客製化。
+    1. size : 顯示在聊天室的大小(可以看官方給的樣板RichMenu_DesignTemplate)
+    2. selected : 預設是否開啟選單
+    3. name : 後台能看到此選單的名字
+    4. chatBarText : 在聊天室能看到收起/展開的按鈕名字
+    5. areas : 關於按鈕的配置和行為(Bounds中x, y代表按鈕的左上角)
+
+  * 建立兩個Api物件，分別是`MessagingApi`和`MessagingApiBlob`。差異是Blob(Binary Large Object)物件實際上是一個二進制物件，它能夠是任何形式的資料，包含文字、影片、圖片等，使這個檔案能夠被JavaScript利用。這裡創建的目的是使用本機的圖片當作圖文選單的背景圖案。
+  * `set_rich_menu_image`參數列表中的`_headers`依照圖片副檔名分成`image/jepg`和`image/png`。
+  * 如果有是有分頁類型的圖文選單，則必須要多設定`create_rich_menu_alias`區分不同的選單。
+
+## 使用方法
+
+* **Step 1.** 安裝套件
+
+```BASH
+pip install -r requirements.txt
+```
+
+* **Step 2.** 新增.env並新增環境變數
+* **Step 3.** 在images/放入圖文選單的背景圖片
+* **Step 4.** 可以在crawler.py更改搜尋路徑和搜尋元素
+* **Step 5.** 如果需要Line 聊天室有分頁類型的圖文選單，可以在rich_menu.py更改程式
+* **Step 6.** 在main.py中可以更改大部分動作。
+  * `RichMenuRequestObj`可以更改圖文選單的大小和觸發事件
+  * `richMenuObj.create('Your images')`變更背景圖片
+  * `handle_message(event)`變更發生文字事件的回應
+  * `handle_sticker(event)`變更發生貼圖事件的回應
+  * `handle_postback(event)`變更發生回發事件的回應
+
 ## 參考資料
 
 * ### 爬蟲
@@ -305,3 +399,10 @@
 
   * [Ngrok](https://ngrok.com/docs/what-is-ngrok/)
   * [什麼是Webhook](https://medium.com/@justinlee_78563/line-bot-%E7%B3%BB%E5%88%97%E6%96%87-%E4%BB%80%E9%BA%BC%E6%98%AF-webhook-d0ab0bb192be)
+
+* ### Line 聊天室
+
+  * [Line official docs : Rich menu object](https://developers.line.biz/en/reference/messaging-api/#rich-menu-object)
+  * [Line official docs : Upload rich menu image](https://developers.line.biz/en/reference/messaging-api/#upload-rich-menu-image)
+  * [Blob](https://developer.mozilla.org/zh-TW/docs/Web/API/Blob)
+  * [Blob 物件是什麼](https://wenku.csdn.net/answer/f197c2640c104bcfa220008e40c1653e?ydreferer=aHR0cHM6Ly93d3cuZ29vZ2xlLmNvbS8%3D)

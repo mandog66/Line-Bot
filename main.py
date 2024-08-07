@@ -1,10 +1,11 @@
-from flask import Flask, request, abort
 import os
+from rich_menu import RichMenu
 from dotenv import load_dotenv
 from crawler import GoogleScholar
+from flask import Flask, request, abort
 
 from linebot.v3 import (
-    WebhookHandler
+    WebhookHandler,
 )
 from linebot.v3.exceptions import (
     InvalidSignatureError
@@ -13,18 +14,27 @@ from linebot.v3.messaging import (
     Configuration,
     ApiClient,
     MessagingApi,
+    MessagingApiBlob,
 
     PostbackAction,
+    MessageAction,
 
     ReplyMessageRequest,
     ShowLoadingAnimationRequest,
     PushMessageRequest,
+    RichMenuRequest,
+    CreateRichMenuAliasRequest,
+    RichMenuSize,
+    RichMenuArea,
+    RichMenuBounds,
+    RichMenuResponse,
+
 
     TextMessage,
     StickerMessage,
     TemplateMessage,
 
-    ButtonsTemplate
+    ButtonsTemplate,
 )
 from linebot.v3.webhooks import (
     MessageEvent,
@@ -50,6 +60,94 @@ message_text = crawler.search()
 configuration = Configuration(access_token=os.environ.get("CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.environ.get("CHANNEL_SECRET"))
 
+# create rich menu
+RichMenuRequestObj = RichMenuRequest(
+    size=RichMenuSize(
+        width=800,
+        height=540
+    ),
+    selected=False,
+    name="New Rich Menu",
+    chatBarText="圖文選單",
+    areas=[
+        RichMenuArea(
+            bounds=RichMenuBounds(
+                x=0,
+                y=0,
+                width=266,
+                height=270
+            ),
+            action=MessageAction(
+                type='message',
+                text="A"
+            )
+        ),  # A
+        RichMenuArea(
+            bounds=RichMenuBounds(
+                x=267,
+                y=0,
+                width=266,
+                height=270
+            ),
+            action=MessageAction(
+                type='message',
+                text="B"
+            )
+        ),  # B
+        RichMenuArea(
+            bounds=RichMenuBounds(
+                x=534,
+                y=0,
+                width=266,
+                height=270
+            ),
+            action=MessageAction(
+                type='message',
+                text="C"
+            )
+        ),  # C
+        RichMenuArea(
+            bounds=RichMenuBounds(
+                x=0,
+                y=271,
+                width=266,
+                height=270
+            ),
+            action=MessageAction(
+                type='message',
+                text="D"
+            )
+        ),  # D
+        RichMenuArea(
+            bounds=RichMenuBounds(
+                x=267,
+                y=271,
+                width=266,
+                height=270
+            ),
+            action=MessageAction(
+                type='message',
+                text="E"
+            )
+        ),  # E
+        RichMenuArea(
+            bounds=RichMenuBounds(
+                x=534,
+                y=271,
+                width=266,
+                height=270
+            ),
+            action=MessageAction(
+                type='message',
+                text="F"
+            )
+        )  # F
+    ]
+
+)
+richMenuObj = RichMenu(configuration=configuration, richMenuRequest=RichMenuRequestObj)
+richMenuObj.create('./images/richmenu_2.jpg')
+
 
 @app.route("/search", methods=['POST'])
 def search():
@@ -64,7 +162,8 @@ def search():
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        app.logger.info("Invalid signature. Please check your channel access token/channel secret.")
+        app.logger.info(
+            "Invalid signature. Please check your channel access token/channel secret.")
         abort(400)
     return 'OK'
 
@@ -122,7 +221,8 @@ def handle_sticker(event):
         line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
                 replyToken=event.reply_token,
-                messages=[StickerMessage(stickerId=event.message.sticker_id, packageId=event.message.package_id)]
+                messages=[StickerMessage(
+                    stickerId=event.message.sticker_id, packageId=event.message.package_id)]
             )
         )
 
@@ -144,7 +244,8 @@ def handle_postback(event):
         line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
                 replyToken=event.reply_token,
-                messages=[TextMessage(text="reply post Back Message in postback fuc"+f"{event.postback.data}")]
+                messages=[TextMessage(
+                    text="reply post Back Message in postback fuc"+f"{event.postback.data}")]
             )
         )
 
